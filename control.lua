@@ -153,9 +153,19 @@ local function plant_tree(player, position, seed_item, config)
         return false
     end
     
-    -- Create tree sapling instead of full tree
+    -- Use the correct sapling entity names
+    local sapling_name
+    if seed_item == "yumako-seed" then
+        sapling_name = "yumako-sapling"
+    elseif seed_item == "jellynut-seed" then
+        sapling_name = "jellynut-sapling"
+    else
+        sapling_name = "tree-sapling"  -- Standard tree sapling
+    end
+    
+    -- Create tree sapling
     local sapling = surface.create_entity{
-        name = "tree-seed-sapling",  -- This is the sapling entity
+        name = sapling_name,
         position = position,
         force = "neutral"
     }

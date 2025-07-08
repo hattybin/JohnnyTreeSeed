@@ -1,4 +1,4 @@
--- UPS-Optimized JohnnyTreeSeed Control.lua
+-- UPS-Optimized JohnnyTreeSeed Control.lua with Directional Planting
 local MOD_NAME = "JohnnyTreeSeed"
 
 -- Performance tracking with better throttling
@@ -27,7 +27,9 @@ local function initialize_player_data(player_index)
         radius = 2,
         cooldown = 30,
         mode = "conservative",
-        last_settings_update = 0
+        last_settings_update = 0,
+        last_position = nil, -- Track previous position for movement direction
+        movement_direction = {x = 0, y = 0} -- Store movement vector
     }
     last_plant_tick[player_index] = 0
 end
@@ -50,6 +52,45 @@ end
 -- Check if current surface is Nauvis
 local function is_nauvis(surface_name)
     return string.find(surface_name, "nauvis") ~= nil
+end
+
+-- Calculate movement direction and update player data
+local function update_movement_direction(player_index, current_position)
+    local data = player_data[player_index]
+    
+    if data.last_position then
+        -- Calculate movement vector
+        local dx = current_position.x - data.last_position.x
+        local dy = current_position.y - data.last_position.y
+        
+        -- Only update direction if there was significant movement
+        if math.abs(dx) > 0.1 or math.abs(dy) > 0.1 then
+            -- Normalize to unit vector for consistent direction
+            local length = math.sqrt(dx * dx + dy * dy)
+            if length > 0 then
+                data.movement_direction.x = dx / length
+                data.movement_direction.y = dy / length
+            end
+        end
+    end
+    
+    -- Update last position
+    data.last_position = {x = current_position.x, y = current_position.y}
+end
+
+-- Get planting position behind player movement
+local function get_planting_position_behind_player(current_position, movement_direction, offset_distance)
+    offset_distance = offset_distance or 1
+    
+    -- Calculate position behind movement direction
+    local plant_x = current_position.x - (movement_direction.x * offset_distance)
+    local plant_y = current_position.y - (movement_direction.y * offset_distance)
+    
+    -- Round to grid positions
+    return {
+        x = math.floor(plant_x + 0.5),
+        y = math.floor(plant_y + 0.5)
+    }
 end
 
 -- Optimized position validation (combine checks)
@@ -110,29 +151,57 @@ local function plant_tree(player, position)
     return false
 end
 
--- Optimized position generation
+-- Get planting positions based on mode with directional awareness
 local function get_planting_positions(player_position, data)
     local positions = {}
+    local movement_dir = data.movement_direction
+    
+    -- If no movement direction yet, default to planting at current position
+    if movement_dir.x == 0 and movement_dir.y == 0 then
+        positions[1] = player_position
+        return positions
+    end
     
     if data.mode == "conservative" then
-        positions[1] = player_position
+        -- Plant one tile behind movement direction
+        local behind_pos = get_planting_position_behind_player(player_position, movement_dir, 1)
+        positions[1] = behind_pos
+        
     elseif data.mode == "aggressive" then
-        -- Limit aggressive mode to 3x3 maximum for better UPS
+        -- Plant in a pattern behind the player
         local max_radius = math.min(data.radius, 3)
-        for x = -max_radius, max_radius do
-            for y = -max_radius, max_radius do
-                positions[#positions + 1] = {
-                    x = player_position.x + x,
-                    y = player_position.y + y
-                }
-            end
+        
+        -- Primary position behind player
+        local behind_pos = get_planting_position_behind_player(player_position, movement_dir, 1)
+        positions[1] = behind_pos
+        
+        -- Additional positions in a cross pattern behind player
+        for offset = 1, max_radius do
+            -- Behind and to the sides
+            local behind_further = get_planting_position_behind_player(player_position, movement_dir, offset + 1)
+            positions[#positions + 1] = behind_further
+            
+            -- Behind and offset perpendicular to movement
+            positions[#positions + 1] = {
+                x = behind_pos.x + offset * (-movement_dir.y), -- Perpendicular to movement
+                y = behind_pos.y + offset * (movement_dir.x)
+            }
+            positions[#positions + 1] = {
+                x = behind_pos.x - offset * (-movement_dir.y),
+                y = behind_pos.y - offset * (movement_dir.x)
+            }
         end
-    else -- planet-adaptive (same as conservative on Nauvis)
-        positions[1] = player_position
-        positions[2] = {x = player_position.x + 1, y = player_position.y}
-        positions[3] = {x = player_position.x - 1, y = player_position.y}
-        positions[4] = {x = player_position.x, y = player_position.y + 1}
-        positions[5] = {x = player_position.x, y = player_position.y - 1}
+        
+    else -- planet-adaptive (conservative on Nauvis)
+        -- Plant behind and in a small cross pattern
+        local behind_pos = get_planting_position_behind_player(player_position, movement_dir, 1)
+        positions[1] = behind_pos
+        
+        -- Add adjacent positions behind player
+        positions[2] = {x = behind_pos.x + 1, y = behind_pos.y}
+        positions[3] = {x = behind_pos.x - 1, y = behind_pos.y}
+        positions[4] = {x = behind_pos.x, y = behind_pos.y + 1}
+        positions[5] = {x = behind_pos.x, y = behind_pos.y - 1}
     end
     
     return positions
@@ -160,11 +229,14 @@ local function attempt_tree_planting(player_index, player_position)
         return
     end
     
+    -- Update movement direction
+    update_movement_direction(player_index, player_position)
+    
     -- Early exit if no seeds
     local seed_item = get_available_seed(player)
     if not seed_item then return end
     
-    -- Get positions to check
+    -- Get positions to check (now directionally aware)
     local positions = get_planting_positions(player_position, data)
     
     -- Try to plant (limit attempts for UPS)

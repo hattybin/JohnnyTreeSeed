@@ -1,6 +1,8 @@
 1.0.0 - First Version
 1.0.1 - Removed sounds
-1.0.2 - Optimized UPS
-1.0.3 - Removed custom particles 
-1.0.4 - Actually removed custom particles
-
+...
+1.0.4 - [whatever your current 1.0.4 changes were]
+1.0.5 - Fixed tree planting behavior
+- Now plants saplings instead of full trees
+- Prevents players from getting trapped
+- Trees grow naturally over time like normal planting

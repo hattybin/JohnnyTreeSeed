@@ -144,30 +144,35 @@ local function select_tree_type(seed_item, config)
     end
 end
 
--- Optimized planting with minimal particle creation
+-- Plant tree at position
 local function plant_tree(player, position, seed_item, config)
     local surface = player.surface
     
-    if not is_valid_planting_position(surface, position, config) then
+    -- Validate position
+    if not is_suitable_tile(surface, position, config) then
         return false
     end
     
-    local tree_type = select_tree_type(seed_item, config)
-    local tree = surface.create_entity{
-        name = tree_type,
+    if not position_is_clear(surface, position) then
+        return false
+    end
+    
+    -- Create tree sapling instead of full tree
+    local sapling = surface.create_entity{
+        name = "tree-seed-sapling",  -- This is the sapling entity
         position = position,
         force = "neutral"
     }
     
-    if tree then
+    if sapling then
         -- Remove seed from inventory
         local main_inventory = player.get_main_inventory()
         main_inventory.remove({name = seed_item, count = 1})
-    
+        
         return true
-    end 
-
-return false
+    end
+    
+    return false
 end
 
 -- Optimized position generation

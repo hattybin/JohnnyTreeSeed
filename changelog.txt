@@ -6,3 +6,4 @@
 - Now plants saplings instead of full trees
 - Prevents players from getting trapped
 - Trees grow naturally over time like normal planting
+1.0.6 - Fixed incorrect function reference

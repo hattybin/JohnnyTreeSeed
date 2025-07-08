@@ -1,0 +1,6 @@
+1.0.0 - First Version
+1.0.1 - Removed sounds
+1.0.2 - Optimized UPS
+1.0.3 - Removed custom particles 
+1.0.4 - Actually removed custom particles
+

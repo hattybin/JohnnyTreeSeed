@@ -1,0 +1,9 @@
+{
+  "name": "JohnnyTreeSeed",
+  "version": "1.0.4",
+  "title": "JohnnyTreeSeed - Automatic Tree Planting",
+  "author": "Hattybin",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0", "? space-age >= 2.0"],
+  "description": "Automatically plants tree seeds as you walk when you have seeds in your inventory. Compatible with Space Age DLC."
+}

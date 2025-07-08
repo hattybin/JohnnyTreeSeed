@@ -148,12 +148,8 @@ end
 local function plant_tree(player, position, seed_item, config)
     local surface = player.surface
     
-    -- Validate position
-    if not is_suitable_tile(surface, position, config) then
-        return false
-    end
-    
-    if not position_is_clear(surface, position) then
+    -- Validate position using the correct function name
+    if not is_valid_planting_position(surface, position, config) then
         return false
     end
     

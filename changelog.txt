@@ -7,3 +7,5 @@
 - Prevents players from getting trapped
 - Trees grow naturally over time like normal planting
 1.0.6 - Fixed incorrect function reference
+1.0.7 - Fixed sapling entity reference
+1.0.8 - Update tree-sapling entity (doesnt exist) to tree-plant 

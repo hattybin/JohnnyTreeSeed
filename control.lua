@@ -1,5 +1,5 @@
--- UPS-Optimized JonnyTreeSeed Control.lua
-local MOD_NAME = "JonnyTreeSeed"
+-- UPS-Optimized JohnnyTreeSeed Control.lua
+local MOD_NAME = "JohnnyTreeSeed"
 
 -- Performance tracking with better throttling
 local player_data = {}
@@ -10,46 +10,13 @@ local mod_tick_counter = 0
 local SETTINGS_UPDATE_INTERVAL = 600 -- 10 seconds instead of 5
 local GLOBAL_THROTTLE_INTERVAL = 5   -- Process every 5th tick
 
--- Planet-specific configurations (unchanged)
-local planet_configs = {
-    ["nauvis"] = {
-        seed_items = {"tree-seed"},
-        tree_entities = {"tree-01", "tree-02", "tree-03", "tree-04", "tree-05"},
-        suitable_tiles = {
-            ["grass-1"] = true, ["grass-2"] = true, ["grass-3"] = true, ["grass-4"] = true,
-            ["dirt-1"] = true, ["dirt-2"] = true, ["dirt-3"] = true, ["dirt-4"] = true,
-            ["dirt-5"] = true, ["dirt-6"] = true, ["dirt-7"] = true
-        }
-    },
-    ["gleba"] = {
-        seed_items = {"yumako-seed", "jellynut-seed"},
-        tree_entities = {"yumako-tree", "jellynut-tree"},
-        suitable_tiles = {
-            ["natural-yumako-soil"] = true,
-            ["artificial-yumako-soil"] = true,
-            ["natural-jellynut-soil"] = true,
-            ["artificial-jellynut-soil"] = true,
-            ["overgrowth-yumako-soil"] = true,
-            ["overgrowth-jellynut-soil"] = true
-        }
-    },
-    ["vulcanus"] = {
-        seed_items = {"tree-seed"},
-        tree_entities = {"tree-01"},
-        suitable_tiles = {
-            ["volcanic-ash-light"] = true,
-            ["volcanic-ash-dark"] = true
-        }
-    },
-    ["fulgora"] = {
-        seed_items = {"tree-seed"},
-        tree_entities = {"tree-01"},
-        suitable_tiles = {}
-    },
-    ["aquilo"] = {
-        seed_items = {"tree-seed"},
-        tree_entities = {"tree-01"},
-        suitable_tiles = {}
+-- Simplified planet configuration - Nauvis only
+local nauvis_config = {
+    seed_items = {"tree-seed"},
+    suitable_tiles = {
+        ["grass-1"] = true, ["grass-2"] = true, ["grass-3"] = true, ["grass-4"] = true,
+        ["dirt-1"] = true, ["dirt-2"] = true, ["dirt-3"] = true, ["dirt-4"] = true,
+        ["dirt-5"] = true, ["dirt-6"] = true, ["dirt-7"] = true
     }
 }
 
@@ -60,8 +27,7 @@ local function initialize_player_data(player_index)
         radius = 2,
         cooldown = 30,
         mode = "conservative",
-        last_settings_update = 0,
-        surface_config = nil -- Cache surface config
+        last_settings_update = 0
     }
     last_plant_tick[player_index] = 0
 end
@@ -79,35 +45,21 @@ local function update_player_settings(player_index)
     data.cooldown = settings["johnny-tree-seed-cooldown"].value
     data.mode = settings["johnny-tree-seed-mode"].value
     data.last_settings_update = game.tick
-    
-    -- Clear surface config cache when settings change
-    data.surface_config = nil
 end
 
--- Cached planet configuration lookup
-local function get_planet_config(player_index, surface_name)
-    local data = player_data[player_index]
-    if not data.surface_config then
-        local planet_name = surface_name
-        for planet, config in pairs(planet_configs) do
-            if string.find(surface_name, planet) then
-                planet_name = planet
-                break
-            end
-        end
-        data.surface_config = planet_configs[planet_name] or planet_configs["nauvis"]
-    end
-    return data.surface_config
+-- Check if current surface is Nauvis
+local function is_nauvis(surface_name)
+    return string.find(surface_name, "nauvis") ~= nil
 end
 
 -- Optimized position validation (combine checks)
-local function is_valid_planting_position(surface, position, config)
+local function is_valid_planting_position(surface, position)
     -- Check tile first (fastest)
     local tile = surface.get_tile(position)
     if not tile or not tile.valid then return false end
     
     local tile_name = tile.name
-    if not config.suitable_tiles[tile_name] then return false end
+    if not nauvis_config.suitable_tiles[tile_name] then return false end
     
     -- Then check for blocking entities
     local entities = surface.find_entities_filtered{
@@ -120,60 +72,37 @@ local function is_valid_planting_position(surface, position, config)
 end
 
 -- Optimized seed checking with early exit
-local function get_available_seed(player, config)
+local function get_available_seed(player)
     local main_inventory = player.get_main_inventory()
     if not main_inventory then return nil end
     
-    -- Check most common seed first
-    for _, seed_item in pairs(config.seed_items) do
-        if main_inventory.get_item_count(seed_item) > 0 then
-            return seed_item
-        end
+    -- Only check for tree-seed on Nauvis
+    if main_inventory.get_item_count("tree-seed") > 0 then
+        return "tree-seed"
     end
     return nil
 end
 
--- Optimized tree type selection
-local function select_tree_type(seed_item, config)
-    if seed_item == "yumako-seed" then
-        return "yumako-tree"
-    elseif seed_item == "jellynut-seed" then
-        return "jellynut-tree"
-    else
-        return config.tree_entities[math.random(#config.tree_entities)]
-    end
-end
-
 -- Plant tree at position
-local function plant_tree(player, position, seed_item, config)
+local function plant_tree(player, position)
     local surface = player.surface
     
-    -- Validate position using the correct function name
-    if not is_valid_planting_position(surface, position, config) then
+    -- Validate position
+    if not is_valid_planting_position(surface, position) then
         return false
     end
     
-    -- Use the correct sapling entity names
-    local sapling_name
-    if seed_item == "yumako-seed" then
-        sapling_name = "yumako-sapling"
-    elseif seed_item == "jellynut-seed" then
-        sapling_name = "jellynut-sapling"
-    else
-        sapling_name = "tree-sapling"  -- Standard tree sapling
-    end
-    
-    -- Create tree sapling
-    local sapling = surface.create_entity{
-        name = sapling_name,
+    -- Create tree plant (sapling) - this is what manual planting creates
+    local tree_plant = surface.create_entity{
+        name = "tree-plant",
         position = position,
         force = "neutral"
     }
     
-    if sapling then
+    if tree_plant then
         -- Remove seed from inventory
         local main_inventory = player.get_main_inventory()
-        main_inventory.remove({name = seed_item, count = 1})
+        main_inventory.remove({name = "tree-seed", count = 1})
         
         return true
     end
@@ -198,8 +127,7 @@ local function get_planting_positions(player_position, data)
                 }
             end
         end
-    else -- planet-adaptive
-        -- More conservative planet-adaptive for better UPS
+    else -- planet-adaptive (same as conservative on Nauvis)
         positions[1] = player_position
         positions[2] = {x = player_position.x + 1, y = player_position.y}
         positions[3] = {x = player_position.x - 1, y = player_position.y}
@@ -226,15 +154,14 @@ local function attempt_tree_planting(player_index, player_position)
     end
     
     local surface = player.surface
-    local config = get_planet_config(player_index, surface.name)
     
-    -- Early exit if no suitable tiles
-    if not next(config.suitable_tiles) then
+    -- Only work on Nauvis
+    if not is_nauvis(surface.name) then
         return
     end
     
     -- Early exit if no seeds
-    local seed_item = get_available_seed(player, config)
+    local seed_item = get_available_seed(player)
     if not seed_item then return end
     
     -- Get positions to check
@@ -242,7 +169,7 @@ local function attempt_tree_planting(player_index, player_position)
     
     -- Try to plant (limit attempts for UPS)
     for i = 1, math.min(#positions, 5) do -- Max 5 attempts
-        if plant_tree(player, positions[i], seed_item, config) then
+        if plant_tree(player, positions[i]) then
             last_plant_tick[player_index] = current_tick
             return -- Success, exit early
         end

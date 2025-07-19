@@ -27,6 +27,10 @@ Access mod settings through: Options → Mod Settings → Per Player
 
 See [changelog.txt](changelog.txt) for version history.
 
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-This mod is open source. Feel free to modify and distribute.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

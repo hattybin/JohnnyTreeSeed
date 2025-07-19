@@ -1,6 +1,9 @@
 # Factorio mod packaging
 *.zip
 
+# Build artifacts (releases should use GitHub releases instead)
+JohnnyTreeSeed_*.zip
+
 # Temporary files
 *.tmp
 *.temp
